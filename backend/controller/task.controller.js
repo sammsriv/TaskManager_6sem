@@ -14,8 +14,15 @@ export const createTask = async (req, res, next) => {
       todoChecklist,
     } = req.body
 
-    if (!Array.isArray(assignedTo)) {
-      return next(errorHandler(400, "assignedTo must be an array of user IDs"))
+    let assignedUsers = []
+
+    if (req.user.role === "admin") {
+      if (!Array.isArray(assignedTo)) {
+        return next(errorHandler(400, "assignedTo must be an array of user IDs"))
+      }
+      assignedUsers = assignedTo
+    } else {
+      assignedUsers = [req.user.id]
     }
 
     const task = await Task.create({
@@ -23,7 +30,7 @@ export const createTask = async (req, res, next) => {
       description,
       priority,
       dueDate,
-      assignedTo,
+      assignedTo: assignedUsers,
       attachments,
       todoChecklist,
       createdBy: req.user.id,
@@ -37,6 +44,9 @@ export const createTask = async (req, res, next) => {
 
 export const getTasks = async (req, res, next) => {
   try {
+    // Auto-delete expired completed tasks disabled as per user request
+    // await deleteExpiredTasks()
+
     const { status } = req.query
 
     let filter = {}
@@ -65,7 +75,7 @@ export const getTasks = async (req, res, next) => {
           (item) => item.completed
         ).length
 
-        return { ...task._doc, completedCount: completedCount }
+        return { ...task._doc, completedTodoCount: completedCount }
       })
     )
 
@@ -120,6 +130,14 @@ export const getTaskById = async (req, res, next) => {
       return next(errorHandler(404, "Task not found!"))
     }
 
+    const isAssigned = task.assignedTo.some(
+      (user) => user._id.toString() === req.user.id.toString()
+    )
+
+    if (!isAssigned && req.user.role !== "admin") {
+      return next(errorHandler(403, "Unauthorized to view this task"))
+    }
+
     res.status(200).json(task)
   } catch (error) {
     next(error)
@@ -134,6 +152,14 @@ export const updateTask = async (req, res, next) => {
       return next(errorHandler(404, "Task not found!"))
     }
 
+    const isAssigned = task.assignedTo.some(
+      (userId) => userId.toString() === req.user.id.toString()
+    )
+
+    if (!isAssigned && req.user.role !== "admin") {
+      return next(errorHandler(403, "Unauthorized to update this task"))
+    }
+
     task.title = req.body.title || task.title
     task.description = req.body.description || task.description
     task.priority = req.body.priority || task.priority
@@ -142,6 +168,12 @@ export const updateTask = async (req, res, next) => {
     task.attachments = req.body.attachments || task.attachments
 
     if (req.body.assignedTo) {
+      if (req.user.role !== "admin") {
+        return next(
+          errorHandler(403, "Only admins can change assigned users")
+        )
+      }
+
       if (!Array.isArray(req.body.assignedTo)) {
         return next(
           errorHandler(400, "assignedTo must be an array of user IDs")
@@ -167,6 +199,14 @@ export const deleteTask = async (req, res, next) => {
 
     if (!task) {
       return next(errorHandler(404, "Task not found!"))
+    }
+
+    const isAssigned = task.assignedTo.some(
+      (userId) => userId.toString() === req.user.id.toString()
+    )
+
+    if (!isAssigned && req.user.role !== "admin") {
+      return next(errorHandler(403, "Not authorized to delete this task"))
     }
 
     await task.deleteOne()
@@ -197,6 +237,11 @@ export const updateTaskStatus = async (req, res, next) => {
 
     if (task.status === "Completed") {
       task.todoChecklist.forEach((item) => (item.completed = true))
+      task.progress = 100
+
+      if (req.user.role !== "admin") {
+        // No auto-deletion: tasks persist after completion
+      }
     }
 
     await task.save()
@@ -217,7 +262,11 @@ export const updateTaskChecklist = async (req, res, next) => {
       return next(errorHandler(404, "Task not found!"))
     }
 
-    if (!task.assignedTo.includes(req.user.id) && req.user.role !== "admin") {
+    const isAssigned = task.assignedTo.some(
+      (userId) => userId.toString() === req.user.id.toString()
+    )
+
+    if (!isAssigned && req.user.role !== "admin") {
       return next(errorHandler(403, "Not authorized to update checklist"))
     }
 
@@ -236,8 +285,10 @@ export const updateTaskChecklist = async (req, res, next) => {
 
     if (task.progress === 100) {
       task.status = "Completed"
-    } else if (task.progress > 0) {
-      task.status = "In Progress"
+
+      if (req.user.role !== "admin") {
+        // No auto-deletion: tasks persist after checklist completion
+      }
     } else {
       task.status = "Pending"
     }
@@ -252,6 +303,76 @@ export const updateTaskChecklist = async (req, res, next) => {
     res
       .status(200)
       .json({ message: "Task checklist updated", task: updatedTask })
+  } catch (error) {
+    next(error)
+  }
+}
+
+export const getOverdueTasks = async (req, res, next) => {
+  try {
+    const overdueFilter = {
+      status: { $ne: "Completed" },
+      dueDate: { $lt: new Date() },
+      ...(req.user.role !== "admin" && { assignedTo: req.user.id }),
+    }
+
+    const tasks = await Task.find(overdueFilter).populate(
+      "assignedTo",
+      "name email profileImageUrl"
+    )
+
+    res.status(200).json({ tasks })
+  } catch (error) {
+    next(error)
+  }
+}
+
+export const getTaskSummary = async (req, res, next) => {
+  try {
+    const match = req.user.role === "admin" ? {} : { assignedTo: req.user.id }
+
+    const [statusCounts, priorityCounts, dueCounts] = await Promise.all([
+      Task.aggregate([
+        { $match: match },
+        { $group: { _id: "$status", count: { $sum: 1 } } },
+      ]),
+      Task.aggregate([
+        { $match: match },
+        { $group: { _id: "$priority", count: { $sum: 1 } } },
+      ]),
+      Task.aggregate([
+        { $match: match },
+        {
+          $group: {
+            _id: {
+              $cond: [
+                { $lt: ["$dueDate", new Date()] },
+                "Overdue",
+                "On Track",
+              ],
+            },
+            count: { $sum: 1 },
+          },
+        },
+      ]),
+    ])
+
+    const formatCounts = (items, keys) =>
+      keys.reduce((acc, key) => {
+        acc[key] = items.find((item) => item._id === key)?.count || 0
+        return acc
+      }, {})
+
+    const summary = {
+      status: formatCounts(statusCounts, ["Pending", "In Progress", "Completed"]),
+      priority: formatCounts(priorityCounts, ["Low", "Medium", "High"]),
+      dueStatus: {
+        overdue: dueCounts.find((item) => item._id === "Overdue")?.count || 0,
+        onTrack: dueCounts.find((item) => item._id === "On Track")?.count || 0,
+      },
+    }
+
+    res.status(200).json({ summary })
   } catch (error) {
     next(error)
   }
@@ -312,7 +433,7 @@ export const getDashboardData = async (req, res, next) => {
     const recentTasks = await Task.find()
       .sort({ createdAt: -1 })
       .limit(10)
-      .select("title status priority dueDate createdAt")
+      .select("title status priority dueDate createdAt description todoChecklist")
 
     res.status(200).json({
       statistics: {
@@ -423,6 +544,53 @@ export const userDashboardData = async (req, res, next) => {
       },
       recentTasks,
     })
+  } catch (error) {
+    next(error)
+  }
+}
+
+// Auto-delete expired completed tasks
+export const deleteExpiredTasks = async () => {
+  try {
+    const result = await Task.deleteMany({
+      status: "Completed",
+      dueDate: { $lt: new Date() },
+    })
+    console.log(`Deleted ${result.deletedCount} expired completed tasks`)
+    return result
+  } catch (error) {
+    console.error("Error deleting expired tasks:", error)
+  }
+}
+
+// Admin assign task to themselves
+export const assignTaskToAdmin = async (req, res, next) => {
+  try {
+    const {
+      title,
+      description,
+      priority,
+      dueDate,
+      attachments,
+      todoChecklist,
+    } = req.body
+
+    if (req.user.role !== "admin") {
+      return next(errorHandler(403, "Only admins can create self-assigned tasks"))
+    }
+
+    const task = await Task.create({
+      title,
+      description,
+      priority,
+      dueDate,
+      assignedTo: [req.user.id],
+      attachments,
+      todoChecklist,
+      createdBy: req.user.id,
+    })
+
+    res.status(201).json({ message: "Task assigned to admin", task })
   } catch (error) {
     next(error)
   }

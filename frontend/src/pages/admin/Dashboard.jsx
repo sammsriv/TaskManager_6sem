@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react"
+import React, { useEffect, useState, useCallback } from "react"
 import { useSelector } from "react-redux"
 import DashboardLayout from "../../components/DashboardLayout"
 import axiosInstance from "../../utils/axioInstance"
@@ -20,7 +20,7 @@ const Dashboard = () => {
   const [barChartData, setBarChartData] = useState([])
 
   // prepare data for pie chart
-  const prepareChartData = (data) => {
+  const prepareChartData = useCallback((data) => {
     const taskDistribution = data?.taskDistribution || {}
     const taskPriorityLevels = data?.taskPriorityLevel || {}
 
@@ -38,9 +38,9 @@ const Dashboard = () => {
     ]
 
     setBarChartData(priorityLevelData)
-  }
+  }, [])
 
-  const getDashboardData = async () => {
+  const getDashboardData = useCallback(async () => {
     try {
       const response = await axiosInstance.get("/tasks/dashboard-data")
 
@@ -51,13 +51,13 @@ const Dashboard = () => {
     } catch (error) {
       console.log("Error fetching dashboard data: ", error)
     }
-  }
+  }, [prepareChartData])
 
   useEffect(() => {
     getDashboardData()
 
     return () => { }
-  }, [])
+  }, [getDashboardData])
 
   const handleTaskCompleted = () => {
     // Refresh dashboard data when a task is completed
@@ -81,7 +81,7 @@ const Dashboard = () => {
 
             <div className="mt-4 md:mt-0">
               <button
-                className="bg-white text-blue-600 hover:bg-blue-50 px-6 py-2 rounded-lg font-medium transition-all duration-200 shadow-md"
+                className="bg-white text-blue-600 hover:bg-blue-50 px-6 py-2 rounded-lg font-medium transition-all duration-200 shadow-md cursor-pointer"
                 onClick={() => navigate("/admin/create-task")}
               >
                 Create New Task

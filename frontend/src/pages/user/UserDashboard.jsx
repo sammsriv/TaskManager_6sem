@@ -1,9 +1,8 @@
-import React, { useEffect, useState } from "react"
+import React, { useEffect, useState, useCallback } from "react"
 import { useSelector } from "react-redux"
 import DashboardLayout from "../../components/DashboardLayout"
 import axiosInstance from "../../utils/axioInstance"
 import moment from "moment"
-import { useNavigate } from "react-router-dom"
 import RecentTasks from "../../components/RecentTasks"
 import CustomPieChart from "../../components/CustomPieChart"
 import CustomBarChart from "../../components/CustomBarChart"
@@ -11,8 +10,6 @@ import CustomBarChart from "../../components/CustomBarChart"
 const COLORS = ["#FF6384", "#36A2EB", "#FFCE56"]
 
 const UserDashboard = () => {
-  const navigate = useNavigate()
-
   const { currentUser } = useSelector((state) => state.user)
 
   const [dashboardData, setDashboardData] = useState([])
@@ -20,7 +17,7 @@ const UserDashboard = () => {
   const [barChartData, setBarChartData] = useState([])
 
   // prepare data for pie chart
-  const prepareChartData = (data) => {
+  const prepareChartData = useCallback((data) => {
     const taskDistribution = data?.taskDistribution || {}
     const taskPriorityLevels = data?.taskPriorityLevel || {}
 
@@ -38,9 +35,9 @@ const UserDashboard = () => {
     ]
 
     setBarChartData(priorityLevelData)
-  }
+  }, [])
 
-  const getDashboardData = async () => {
+  const getDashboardData = useCallback(async () => {
     try {
       const response = await axiosInstance.get("/tasks/user-dashboard-data")
 
@@ -51,13 +48,13 @@ const UserDashboard = () => {
     } catch (error) {
       console.log("Error fetching user dashboard data: ", error)
     }
-  }
+  }, [prepareChartData])
 
   useEffect(() => {
     getDashboardData()
 
     return () => {}
-  }, [])
+  }, [getDashboardData])
 
   return (
     <DashboardLayout activeMenu={"Dashboard"}>

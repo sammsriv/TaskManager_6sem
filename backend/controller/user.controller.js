@@ -4,7 +4,7 @@ import { errorHandler } from "../utils/error.js"
 
 export const getUsers = async (req, res, next) => {
   try {
-    const users = await User.find({ role: "user" }).select("-password")
+    const users = await User.find({ role: { $in: ["user", "admin"] } }).select("-password")
 
     const userWithTaskCounts = await Promise.all(
       users.map(async (user) => {
@@ -47,6 +47,26 @@ export const getUserById = async (req, res, next) => {
     }
 
     res.status(200).json(user)
+  } catch (error) {
+    next(error)
+  }
+}
+
+export const deleteUser = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.params.id)
+
+    if (!user) {
+      return next(errorHandler(404, "User not found!"))
+    }
+
+    if (user.role === "admin") {
+      return next(errorHandler(403, "Cannot delete another admin"))
+    }
+
+    await user.deleteOne()
+
+    res.status(200).json({ message: "User deleted successfully" })
   } catch (error) {
     next(error)
   }

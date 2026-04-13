@@ -110,6 +110,7 @@ export const updateUserProfile = async (req, res, next) => {
 
     user.name = req.body.name || user.name
     user.email = req.body.email || user.email
+    user.profileImageUrl = req.body.profileImageUrl || user.profileImageUrl
 
     if (req.body.password) {
       user.password = bcryptjs.hashSync(req.body.password, 10)

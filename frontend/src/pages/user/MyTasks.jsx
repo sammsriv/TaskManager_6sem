@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react"
+import React, { useEffect, useState, useCallback } from "react"
 import DashboardLayout from "../../components/DashboardLayout"
 import { useNavigate } from "react-router-dom"
 import { useSelector } from "react-redux"
@@ -7,6 +7,7 @@ import TaskStatusTabs from "../../components/TaskStatusTabs"
 import { FaFileLines } from "react-icons/fa6"
 import TaskCard from "../../components/TaskCard"
 import toast from "react-hot-toast"
+import TaskSummaryModal from "../../components/TaskSummaryModal"
 
 const MyTask = () => {
   const [allTasks, setAllTasks] = useState([])
@@ -17,14 +18,14 @@ const MyTask = () => {
   ])
   const [filterStatus, setFilterStatus] = useState("All")
   const [loadingTaskId, setLoadingTaskId] = useState(null)
+  const [selectedTask, setSelectedTask] = useState(null)
+  const [isSummaryOpen, setIsSummaryOpen] = useState(false)
 
   const { currentUser } = useSelector((state) => state.user)
 
-  // console.log(tabs)
-
   const navigate = useNavigate()
 
-  const getAllTasks = async () => {
+  const getAllTasks = useCallback(async () => {
     try {
       const response = await axiosInstance.get("/tasks", {
         params: {
@@ -46,10 +47,15 @@ const MyTask = () => {
     } catch (error) {
       console.log("Error fetching tasks: ", error)
     }
+  }, [filterStatus])
+
+  const handleViewTask = (taskData) => {
+    setSelectedTask(taskData)
+    setIsSummaryOpen(true)
   }
 
-  const handleClick = (taskId) => {
-    navigate(`/user/task-details/${taskId}`)
+  const handleEditTask = (taskData) => {
+    navigate("/user/create-task", { state: { taskId: taskData._id } })
   }
 
   const handleCompleteTask = async (taskId) => {
@@ -79,11 +85,31 @@ const MyTask = () => {
     }
   }
 
-  useEffect(() => {
-    getAllTasks(filterStatus)
+  const handleTodoToggle = useCallback(async (taskId, todoIndex) => {
+    try {
+      const task = allTasks.find(t => t._id === taskId)
+      if (!task) return
 
-    return () => { }
-  }, [filterStatus])
+      const updatedTodoList = task.todoChecklist.map((todo, index) => ({
+        text: todo.text,
+        completed: index === todoIndex ? !todo.completed : todo.completed
+      }))
+
+      await axiosInstance.put(`/tasks/${taskId}/todo`, {
+        todoChecklist: updatedTodoList
+      })
+
+      toast.success("Todo updated!")
+      getAllTasks()
+    } catch (error) {
+      console.log("Error updating todo:", error)
+      toast.error("Error updating todo!")
+    }
+  }, [allTasks, getAllTasks])
+
+  useEffect(() => {
+    getAllTasks()
+  }, [getAllTasks])
 
   return (
     <DashboardLayout activeMenu={"My Tasks"}>
@@ -104,11 +130,12 @@ const MyTask = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-4">
           {allTasks?.length > 0 ? (
-            allTasks?.map((item, index) => (
+            allTasks?.map((item) => (
               <TaskCard
                 key={item._id}
+                taskId={item._id}
                 title={item.title}
                 description={item.description}
                 priority={item.priority}
@@ -122,7 +149,6 @@ const MyTask = () => {
                 attachmentCount={item.attachments?.length || 0}
                 completedTodoCount={item.completedTodoCount || 0}
                 todoChecklist={item.todoChecklist || []}
-                onClick={() => handleClick(item._id)}
                 canComplete={
                   item.status !== "Completed" &&
                   item.assignedTo?.some((user) => {
@@ -134,6 +160,9 @@ const MyTask = () => {
                 onComplete={() => handleCompleteTask(item._id)}
                 completeLoading={loadingTaskId === item._id}
                 onDelete={() => handleDeleteTask(item._id)}
+                onView={() => handleViewTask(item)}
+                onEdit={() => handleEditTask(item)}
+                onTodoToggle={handleTodoToggle}
               />
             ))
           ) : (
@@ -145,6 +174,12 @@ const MyTask = () => {
           )}
         </div>
       </div>
+
+      <TaskSummaryModal 
+        isOpen={isSummaryOpen} 
+        onClose={() => setIsSummaryOpen(false)} 
+        task={selectedTask} 
+      />
     </DashboardLayout>
   )
 }

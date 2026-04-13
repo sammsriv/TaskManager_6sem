@@ -3,9 +3,11 @@ import Progress from "./Progress"
 import moment from "moment"
 import AvatarGroup from "./AvatarGroup"
 import { FaFileLines } from "react-icons/fa6"
-import { FaCheckCircle, FaTrash } from "react-icons/fa"
+import { FaCheckCircle, FaTrash, FaEye, FaEdit } from "react-icons/fa"
+import { MdCheckCircle, MdRadioButtonUnchecked } from "react-icons/md"
 
 const TaskCard = ({
+  taskId,
   title,
   description,
   priority,
@@ -22,6 +24,9 @@ const TaskCard = ({
   onComplete,
   completeLoading,
   onDelete,
+  onView,
+  onEdit,
+  onTodoToggle,
 }) => {
   const getStatusTagColor = () => {
     switch (status) {
@@ -49,10 +54,10 @@ const TaskCard = ({
 
   return (
     <div
-      className="bg-white rounded-xl py-4 shadow-md shadow-gray-100 border border-gray-200/50 cursor-pointer"
+      className="bg-white rounded-xl py-4 shadow-md shadow-gray-100 border border-gray-200/50 cursor-pointer h-fit"
       onClick={onClick}
     >
-      <div className="flex items-end gap-3 px-4">
+      <div className="flex items-center gap-3 px-4 flex-wrap">
         <div
           className={`text-[11px] font-medium ${getStatusTagColor()} px-4 py-0.5 rounded-lg`}
         >
@@ -65,45 +70,70 @@ const TaskCard = ({
           {priority} Priority
         </div>
 
-        {canComplete && status !== "Completed" && onComplete && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation()
-              onComplete()
-            }}
-            disabled={completeLoading}
-            className="ml-auto inline-flex items-center gap-1 text-green-600 hover:text-green-800 text-xs font-semibold"
-            type="button"
-          >
-            <FaCheckCircle />
-            {completeLoading ? "Saving..." : "Done"}
-          </button>
-        )}
+        <div className="ml-auto flex items-center gap-2">
+          {canComplete && status !== "Completed" && onComplete && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onComplete()
+              }}
+              disabled={completeLoading}
+              className="inline-flex items-center gap-1 text-green-600 hover:text-green-800 text-xs font-semibold"
+              type="button"
+            >
+              <FaCheckCircle />
+              {completeLoading ? "Saving..." : "Done"}
+            </button>
+          )}
 
-        {onDelete && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation()
-              if (window.confirm("Are you sure you want to delete this task?")) {
+          {onDelete && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
                 onDelete()
-              }
-            }}
-            className="ml-auto inline-flex items-center gap-1 text-red-600 hover:text-red-800 text-xs font-semibold"
-            type="button"
-          >
-            <FaTrash />
-            Delete
-          </button>
-        )}
+              }}
+              className="inline-flex items-center gap-1 text-red-600 hover:text-red-800 text-xs font-semibold"
+              type="button"
+            >
+              <FaTrash />
+            </button>
+          )}
+
+          {onView && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onView()
+              }}
+              className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 text-xs font-semibold"
+              type="button"
+            >
+              <FaEye />
+            </button>
+          )}
+
+          {onEdit && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onEdit()
+              }}
+              className="inline-flex items-center gap-1 text-gray-600 hover:text-gray-800 text-xs font-semibold"
+              type="button"
+            >
+              <FaEdit />
+            </button>
+          )}
+        </div>
       </div>
 
       <div
-        className={`px-4 border-l-[3px] ${status === "Completed"
+        className={`px-4 border-l-[3px] mt-4 ${status === "Completed"
             ? "border-indigo-500"
             : "border-violet-500"
           }`}
       >
-        <p className="text-lg font-medium text-gray-800 mt-4 line-clamp-2">
+        <p className="text-lg font-medium text-gray-800 line-clamp-2">
           {title}
         </p>
 
@@ -111,27 +141,49 @@ const TaskCard = ({
           {description}
         </p>
 
-        {todoChecklist && todoChecklist.length > 0 ? (
-          <p className="text-[13px] text-gray-700/80 font-medium mt-2 mb-2 leading-[18px]">
-            Task Done:{" "}
-            <span className="font-semibold text-gray-700">
-              {completedTodoCount} / {todoChecklist.length}
-            </span>
-          </p>
-        ) : (
-          <p className="text-[13px] text-gray-700/80 font-medium mt-2 mb-2 leading-[18px]">
-            No checklist required for this task.
-          </p>
+        {/* Todo Checklist UI */}
+        {todoChecklist && todoChecklist.length > 0 && (
+          <div className="mt-4 space-y-2">
+             <div className="flex justify-between items-center mb-1">
+                <span className="text-[13px] text-gray-700 font-semibold border-b border-gray-100 pb-1 w-full">
+                  Task Done: {completedTodoCount} / {todoChecklist.length}
+                </span>
+             </div>
+             <div className="max-h-32 overflow-y-auto pr-1 custom-scrollbar">
+                {todoChecklist.map((todo, index) => (
+                  <div key={index} className="flex items-center gap-2 py-0.5 group">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        if (onTodoToggle) onTodoToggle(taskId, index)
+                      }}
+                      className={`text-lg flex-shrink-0 transition-colors ${
+                        todo.completed ? "text-green-600" : "text-gray-400 group-hover:text-green-600"
+                      }`}
+                      type="button"
+                    >
+                      {todo.completed ? <MdCheckCircle /> : <MdRadioButtonUnchecked />}
+                    </button>
+                    <span className={`text-[13px] transition-all ${
+                      todo.completed ? "line-through text-gray-400" : "text-gray-700"
+                    }`}>
+                      {todo.text}
+                    </span>
+                  </div>
+                ))}
+             </div>
+          </div>
         )}
 
-        <Progress progress={progress} status={status} />
+        <div className="mt-4">
+          <Progress progress={progress} status={status} />
+        </div>
       </div>
 
-      <div className="px-4">
+      <div className="px-4 mt-4">
         <div className="flex items-center justify-between my-1">
           <div>
             <label className="text-xs text-gray-500">Start Date</label>
-
             <p className="text-[13px] font-medium text-gray-900">
               {moment(createdAt).format("Do MMM YYYY")}
             </p>
@@ -139,7 +191,6 @@ const TaskCard = ({
 
           <div>
             <label className="text-xs text-gray-500">Due Date</label>
-
             <p className="text-[13px] font-medium text-gray-900">
               {moment(dueDate).format("Do MMM YYYY")}
             </p>
@@ -152,7 +203,6 @@ const TaskCard = ({
           {attachmentCount > 0 && (
             <div className="flex items-center gap-2 bg-blue-50 px-2.5 py-1.5 rounded-lg">
               <FaFileLines className="text-primary" />
-
               <span className="text-xs text-gray-900">{attachmentCount}</span>
             </div>
           )}

@@ -36,7 +36,6 @@ const CreateTask = () => {
   const [currentTask, setCurrentTask] = useState(null)
 
   const [error, setError] = useState("")
-  const [loading, setLoading] = useState(false)
 
   const [openDeleteAlert, setOpenDeleteAlert] = useState(false)
 
@@ -78,7 +77,7 @@ const CreateTask = () => {
         payload.assignedTo = [currentUser._id]
       }
 
-      const response = await axiosInstance.post("/tasks/create", payload)
+      await axiosInstance.post("/tasks/create", payload)
 
       toast.success("Task created successfully!")
 
@@ -114,11 +113,11 @@ const CreateTask = () => {
         delete payload.assignedTo
       }
 
-      const response = await axiosInstance.put(`/tasks/${taskId}`, payload)
+      await axiosInstance.put(`/tasks/${taskId}`, payload)
 
       toast.success("Task updated successfully!")
 
-      console.log(response.data)
+      // toast.success("Task updated successfully!")
     } catch (error) {
       console.log("Error updating task: ", error)
       toast.error("Error updating task!")
@@ -126,6 +125,7 @@ const CreateTask = () => {
   }
 
   const handleSubmit = async (e) => {
+    e.preventDefault()
     setError("")
 
     if (!taskData.title.trim()) {
@@ -209,7 +209,7 @@ const CreateTask = () => {
     }
 
     return () => {}
-  }, [taskId])
+  }, [taskId, getTaskDetailsById])
 
   return (
     <DashboardLayout activeMenu={"Create Task"}>
