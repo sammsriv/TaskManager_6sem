@@ -171,7 +171,7 @@ const SignUp = () => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Admin Invite Token
+                  Admin Invite Token (optional)
                 </label>
 
                 <div className="relative">
@@ -181,8 +181,7 @@ const SignUp = () => {
                     value={adminInviteToken}
                     onChange={(e) => setAdminInviteToken(e.target.value)}
                     className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-12"
-                    placeholder="•••••••"
-                    required
+                    placeholder="Optional admin invite token"
                   />
 
                   <button

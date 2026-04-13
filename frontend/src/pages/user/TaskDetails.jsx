@@ -1,20 +1,22 @@
 import React, { useEffect, useState } from "react"
-import { useParams } from "react-router-dom"
+import { useParams, useNavigate } from "react-router-dom"
+import { useSelector } from "react-redux"
 import axiosInstance from "../../utils/axioInstance"
 import DashboardLayout from "../../components/DashboardLayout"
 import moment from "moment"
 import AvatarGroup from "../../components/AvatarGroup"
-import { FaExternalLinkAlt } from "react-icons/fa"
+import { FaExternalLinkAlt, FaTrash, FaCheckCircle } from "react-icons/fa"
+import { MdRadioButtonUnchecked } from "react-icons/md"
 
 const TaskDetails = () => {
+  const navigate = useNavigate()
   const { id } = useParams()
+  const { currentUser } = useSelector((state) => state.user)
   const [task, setTask] = useState(null)
+  const [loadingDelete, setLoadingDelete] = useState(false)
 
   const getStatusTagColor = (status) => {
     switch (status) {
-      case "In Progress":
-        return "text-cyan-500 bg-cyan-50 border border-cyan-500/10"
-
       case "Completed":
         return "text-lime-500 bg-lime-50 border border-lime-500/10"
 
@@ -22,6 +24,8 @@ const TaskDetails = () => {
         return "text-violet-500 bg-violet-50 border border-violet-500/10"
     }
   }
+
+  const [loading, setLoading] = useState(false)
 
   const getTaskDetailsById = async () => {
     try {
@@ -34,6 +38,23 @@ const TaskDetails = () => {
       }
     } catch (error) {
       console.log("Error fetching task details: ", error)
+    }
+  }
+
+  const completeTask = async () => {
+    try {
+      setLoading(true)
+      const response = await axiosInstance.put(`/tasks/${id}/status`, {
+        status: "Completed",
+      })
+
+      if (response.data) {
+        setTask(response.data.task || { ...task, status: "Completed", progress: 100 })
+      }
+    } catch (error) {
+      console.log("Error completing task: ", error)
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -68,6 +89,30 @@ const TaskDetails = () => {
     window.open(link, "_blank")
   }
 
+  const canModifyTask = () => {
+    if (!task || !currentUser) return false
+
+    const currentUserId = currentUser?._id?.toString?.() || currentUser?.id?.toString?.()
+    const isAssigned = task?.assignedTo?.some((user) => {
+      const userId = user?._id?.toString?.() || user?.toString?.()
+      return userId && currentUserId && userId === currentUserId
+    })
+
+    return currentUser?.role === "admin" || isAssigned
+  }
+
+  const handleDelete = async () => {
+    try {
+      setLoadingDelete(true)
+      await axiosInstance.delete(`/tasks/${id}`)
+      navigate("/user/tasks")
+    } catch (error) {
+      console.log("Error deleting task:", error)
+    } finally {
+      setLoadingDelete(false)
+    }
+  }
+
   useEffect(() => {
     if (id) {
       getTaskDetailsById()
@@ -96,6 +141,27 @@ const TaskDetails = () => {
 
                       <span className="ml-1.5 w-2 h-2 rounded-full bg-current opacity-80"></span>
                     </div>
+
+                    {canModifyTask() && (
+                      <button
+                        onClick={handleDelete}
+                        disabled={loadingDelete}
+                        className="inline-flex items-center gap-2 text-sm text-white bg-red-600 hover:bg-red-700 px-3 py-1 rounded-full transition"
+                      >
+                        <FaTrash />
+                        {loadingDelete ? "Deleting..." : "Delete"}
+                      </button>
+                    )}
+
+                    {task?.status !== "Completed" && (
+                      <button
+                        onClick={completeTask}
+                        disabled={loading}
+                        className="text-sm text-white bg-green-600 hover:bg-green-700 px-3 py-1 rounded-full transition"
+                      >
+                        {loading ? "Completing..." : "Mark Complete"}
+                      </button>
+                    )}
                   </div>
                 </div>
 
@@ -140,14 +206,20 @@ const TaskDetails = () => {
                     Todo Checklist
                   </label>
 
-                  {task?.todoChecklist?.map((item, index) => (
-                    <TodoCheckList
-                      key={`todo_${index}`}
-                      text={item.text}
-                      isChecked={item?.completed}
-                      onChange={() => updateTodoChecklist(index)}
-                    />
-                  ))}
+                  {task?.todoChecklist?.length > 0 ? (
+                    task.todoChecklist.map((item, index) => (
+                      <TodoCheckList
+                        key={`todo_${index}`}
+                        text={item.text}
+                        isChecked={item?.completed}
+                        onChange={() => updateTodoChecklist(index)}
+                      />
+                    ))
+                  ) : (
+                    <p className="text-sm text-gray-500 mt-2">
+                      No todo checklist for this task.
+                    </p>
+                  )}
                 </div>
 
                 {task?.attachments?.length > 0 && (
@@ -192,14 +264,17 @@ const InfoBox = ({ label, value }) => {
 const TodoCheckList = ({ text, isChecked, onChange }) => {
   return (
     <div className="flex items-center gap-3 p-3">
-      <input
-        type="checkbox"
-        checked={isChecked}
-        onChange={onChange}
-        className="w-4 h-4 text-primary bg-gray-100 border border-gray-300 rounded outline-none cursor-pointer"
-      />
+      <button
+        onClick={onChange}
+        className={`text-lg flex-shrink-0 ${isChecked ? "text-green-600" : "text-gray-400 hover:text-green-600"}`}
+        type="button"
+      >
+        {isChecked ? <FaCheckCircle /> : <MdRadioButtonUnchecked />}
+      </button>
 
-      <p className="text-sm text-gray-800">{text}</p>
+      <p className={`text-sm ${isChecked ? "line-through text-gray-500" : "text-gray-800"}`}>
+        {text}
+      </p>
     </div>
   )
 }

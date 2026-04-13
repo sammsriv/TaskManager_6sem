@@ -26,7 +26,6 @@ const UserDashboard = () => {
 
     const taskDistributionData = [
       { status: "Pending", count: taskDistribution?.Pending || 0 },
-      { status: "In Progress", count: taskDistribution?.InProgress || 0 },
       { status: "Completed", count: taskDistribution?.Completed || 0 },
     ]
 
@@ -97,16 +96,6 @@ const UserDashboard = () => {
               </p>
             </div>
 
-            <div className="bg-white p-6 rounded-xl shadow-md border-l-4 border-green-500">
-              <h3 className="text-gray-500 text-sm font-medium">
-                In Progress Tasks
-              </h3>
-
-              <p className="text-3xl font-bold text-gray-800 mt-2">
-                {dashboardData?.charts?.taskDistribution?.InProgress || 0}
-              </p>
-            </div>
-
             <div className="bg-white p-6 rounded-xl shadow-md border-l-4 border-red-500">
               <h3 className="text-gray-500 text-sm font-medium">
                 Completed Tasks
@@ -147,7 +136,10 @@ const UserDashboard = () => {
         </div>
 
         {/* Recent Task Section */}
-        <RecentTasks tasks={dashboardData?.recentTasks} />
+        <RecentTasks 
+          tasks={dashboardData?.recentTasks} 
+          onTaskCompleted={getDashboardData}
+        />
       </div>
     </DashboardLayout>
   )

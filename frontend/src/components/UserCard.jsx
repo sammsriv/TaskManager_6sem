@@ -27,12 +27,6 @@ const UserCard = ({ userInfo }) => {
         />
 
         <StatCard
-          label="In Progress"
-          count={userInfo?.inProgressTasks || 0}
-          status="in-progress"
-        />
-
-        <StatCard
           label="Completed"
           count={userInfo?.completedTasks || 0}
           status="completed"
@@ -49,9 +43,6 @@ const StatCard = ({ label, count, status }) => {
     switch (status) {
       case "pending":
         return "bg-yellow-100 text-yellow-800"
-
-      case "in-progress":
-        return "bg-blue-100 text-blue-800"
 
       case "completed":
         return "bg-green-100 text-green-800"

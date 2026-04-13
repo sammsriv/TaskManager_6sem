@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react"
 import DashboardLayout from "../../components/DashboardLayout"
 import { useNavigate } from "react-router-dom"
+import { useSelector } from "react-redux"
 import axiosInstance from "../../utils/axioInstance"
 import TaskStatusTabs from "../../components/TaskStatusTabs"
 import { FaFileLines } from "react-icons/fa6"
@@ -12,10 +13,12 @@ const MyTask = () => {
   const [tabs, setTabs] = useState([
     { label: "All", count: 0 },
     { label: "Pending", count: 0 },
-    { label: "In Progress", count: 0 },
     { label: "Completed", count: 0 },
   ])
   const [filterStatus, setFilterStatus] = useState("All")
+  const [loadingTaskId, setLoadingTaskId] = useState(null)
+
+  const { currentUser } = useSelector((state) => state.user)
 
   // console.log(tabs)
 
@@ -38,7 +41,6 @@ const MyTask = () => {
       setTabs([
         { label: "All", count: statusSummary.all || 0 },
         { label: "Pending", count: statusSummary.pendingTasks || 0 },
-        { label: "In Progress", count: statusSummary.inProgressTasks || 0 },
         { label: "Completed", count: statusSummary.completedTasks || 0 },
       ])
     } catch (error) {
@@ -50,10 +52,37 @@ const MyTask = () => {
     navigate(`/user/task-details/${taskId}`)
   }
 
+  const handleCompleteTask = async (taskId) => {
+    try {
+      setLoadingTaskId(taskId)
+      await axiosInstance.put(`/tasks/${taskId}/status`, {
+        status: "Completed",
+      })
+      toast.success("Task completed!")
+      getAllTasks()
+    } catch (error) {
+      console.log("Error completing task: ", error)
+      toast.error("Unable to complete task")
+    } finally {
+      setLoadingTaskId(null)
+    }
+  }
+
+  const handleDeleteTask = async (taskId) => {
+    try {
+      await axiosInstance.delete(`/tasks/${taskId}`)
+      toast.success("Task deleted successfully!")
+      getAllTasks() // Refresh list
+    } catch (error) {
+      console.log("Error deleting task:", error)
+      toast.error("Failed to delete task!")
+    }
+  }
+
   useEffect(() => {
     getAllTasks(filterStatus)
 
-    return () => {}
+    return () => { }
   }, [filterStatus])
 
   return (
@@ -94,6 +123,17 @@ const MyTask = () => {
                 completedTodoCount={item.completedTodoCount || 0}
                 todoChecklist={item.todoChecklist || []}
                 onClick={() => handleClick(item._id)}
+                canComplete={
+                  item.status !== "Completed" &&
+                  item.assignedTo?.some((user) => {
+                    const userId = user?._id?.toString?.() || user?.toString?.()
+                    const currentUserId = currentUser?._id?.toString?.() || currentUser?.id?.toString?.()
+                    return userId && currentUserId && userId === currentUserId
+                  })
+                }
+                onComplete={() => handleCompleteTask(item._id)}
+                completeLoading={loadingTaskId === item._id}
+                onDelete={() => handleDeleteTask(item._id)}
               />
             ))
           ) : (

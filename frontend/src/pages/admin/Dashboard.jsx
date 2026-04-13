@@ -4,7 +4,7 @@ import DashboardLayout from "../../components/DashboardLayout"
 import axiosInstance from "../../utils/axioInstance"
 import moment from "moment"
 import { useNavigate } from "react-router-dom"
-import RecentTasks from "../../components/RecentTasks"
+import DashboardTasks from "../../components/DashboardTasks"
 import CustomPieChart from "../../components/CustomPieChart"
 import CustomBarChart from "../../components/CustomBarChart"
 
@@ -26,7 +26,6 @@ const Dashboard = () => {
 
     const taskDistributionData = [
       { status: "Pending", count: taskDistribution?.Pending || 0 },
-      { status: "In Progress", count: taskDistribution?.InProgress || 0 },
       { status: "Completed", count: taskDistribution?.Completed || 0 },
     ]
 
@@ -57,8 +56,13 @@ const Dashboard = () => {
   useEffect(() => {
     getDashboardData()
 
-    return () => {}
+    return () => { }
   }, [])
+
+  const handleTaskCompleted = () => {
+    // Refresh dashboard data when a task is completed
+    getDashboardData()
+  }
 
   return (
     <DashboardLayout activeMenu={"Dashboard"}>
@@ -106,16 +110,6 @@ const Dashboard = () => {
               </p>
             </div>
 
-            <div className="bg-white p-6 rounded-xl shadow-md border-l-4 border-green-500">
-              <h3 className="text-gray-500 text-sm font-medium">
-                In Progress Tasks
-              </h3>
-
-              <p className="text-3xl font-bold text-gray-800 mt-2">
-                {dashboardData?.charts?.taskDistribution?.InProgress || 0}
-              </p>
-            </div>
-
             <div className="bg-white p-6 rounded-xl shadow-md border-l-4 border-red-500">
               <h3 className="text-gray-500 text-sm font-medium">
                 Completed Tasks
@@ -155,8 +149,11 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Recent Task Section */}
-        <RecentTasks tasks={dashboardData?.recentTasks} />
+        {/* Tasks Section */}
+        <DashboardTasks
+          tasks={dashboardData?.recentTasks}
+          onTaskCompleted={handleTaskCompleted}
+        />
       </div>
     </DashboardLayout>
   )

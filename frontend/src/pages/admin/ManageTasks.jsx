@@ -11,6 +11,7 @@ const ManageTasks = () => {
   const [allTasks, setAllTasks] = useState([])
   const [tabs, setTabs] = useState("All")
   const [filterStatus, setFilterStatus] = useState("All")
+  const [loadingTaskId, setLoadingTaskId] = useState(null)
 
   console.log(tabs)
 
@@ -33,7 +34,6 @@ const ManageTasks = () => {
       const statusArray = [
         { label: "All", count: statusSummary.all || 0 },
         { label: "Pending", count: statusSummary.pendingTasks || 0 },
-        { label: "In Progress", count: statusSummary.inProgressTasks || 0 },
         { label: "Completed", count: statusSummary.completedTasks || 0 },
       ]
 
@@ -45,6 +45,33 @@ const ManageTasks = () => {
 
   const handleClick = (taskData) => {
     navigate("/admin/create-task", { state: { taskId: taskData._id } })
+  }
+
+  const handleDeleteTask = async (taskId) => {
+    try {
+      await axiosInstance.delete(`/tasks/${taskId}`)
+      toast.success("Task deleted successfully!")
+      getAllTasks() // Refresh list
+    } catch (error) {
+      console.log("Error deleting task:", error)
+      toast.error("Failed to delete task!")
+    }
+  }
+
+  const handleCompleteTask = async (taskId) => {
+    try {
+      setLoadingTaskId(taskId)
+      await axiosInstance.put(`/tasks/${taskId}/status`, {
+        status: "Completed",
+      })
+      toast.success("Task completed!")
+      getAllTasks()
+    } catch (error) {
+      console.log("Error completing task: ", error)
+      toast.error("Unable to complete task")
+    } finally {
+      setLoadingTaskId(null)
+    }
   }
 
   const handleDownloadReport = async () => {
@@ -75,7 +102,7 @@ const ManageTasks = () => {
   useEffect(() => {
     getAllTasks(filterStatus)
 
-    return () => {}
+    return () => { }
   }, [filterStatus])
 
   return (
@@ -132,6 +159,10 @@ const ManageTasks = () => {
               completedTodoCount={item.completedTodoCount || 0}
               todoChecklist={item.todoChecklist || []}
               onClick={() => handleClick(item)}
+              onDelete={() => handleDeleteTask(item._id)}
+              canComplete={item.status !== "Completed"}
+              onComplete={() => handleCompleteTask(item._id)}
+              completeLoading={loadingTaskId === item._id}
             />
           ))}
         </div>

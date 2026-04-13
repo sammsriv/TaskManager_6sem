@@ -14,12 +14,10 @@ const SelectedUsers = ({ selectedUser, setSelectedUser }) => {
   const getAllUsers = async () => {
     try {
       const response = await axiosInstance.get("/users/get-users")
-
-      if (response.data?.length > 0) {
-        setAllUsers(response.data)
-      }
+      setAllUsers(response.data || [])
     } catch (error) {
       console.log("Error fetching users:", error)
+      setAllUsers([])
     }
   }
 

@@ -55,6 +55,12 @@ export const USER_SIDE_MENU_DATA = [
   },
   {
     id: 3,
+    label: "Create Task",
+    icon: MdAddTask,
+    path: "/user/create-task",
+  },
+  {
+    id: 4,
     label: "Logout",
     icon: MdLogout,
     path: "logout",
@@ -69,6 +75,5 @@ export const PRIORITY_DATA = [
 
 export const STATUS_DATA = [
   { label: "Pending", value: "Pending" },
-  { label: "In Progress", value: "In Progress" },
   { label: "Completed", value: "Completed" },
 ]
