@@ -59,8 +59,7 @@ const TaskDetails = () => {
   }
 
   const updateTodoChecklist = async (index) => {
-    const todoChecklist = [...task?.todoChecklist]
-    const taskId = id
+    const todoChecklist = task?.todoChecklist ? [...task.todoChecklist] : []
 
     if (todoChecklist && todoChecklist[index]) {
       todoChecklist[index].completed = !todoChecklist[index].completed
@@ -76,6 +75,7 @@ const TaskDetails = () => {
           todoChecklist[index].completed = !todoChecklist[index].completed
         }
       } catch (error) {
+        console.error("Error updating todo:", error)
         todoChecklist[index].completed = !todoChecklist[index].completed
       }
     }
@@ -117,7 +117,7 @@ const TaskDetails = () => {
     if (id) {
       getTaskDetailsById()
     }
-  }, [id])
+  }, [id, getTaskDetailsById])
 
   return (
     <DashboardLayout activeMenu={"My Tasks"}>
